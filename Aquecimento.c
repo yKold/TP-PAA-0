@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 #define ACHAR '*'
 #define BCHAR '*'
 #define CCHAR '*'
 #define TAM_V 20
 #define TAM_H 80
+
 typedef struct Posicoes
 {
     int linha;
@@ -232,53 +234,202 @@ void gerarMix( char quadro[TAM_V][TAM_H], int qntd_pontos, Posicoes posicoesGlob
     }
 }
 
-
-void Especial( char quadro[TAM_V][TAM_H], int qntd_pontos, Posicoes posicoesGlobais[], int *indiceGlobal ) {
-    // Loop para gerar pontos e inserir no quadro
-    for (int i = 0; i < qntd_pontos; i++)
-    {
-        int val_linha = numero_aleatorio(1, 18);
-        int *linha = &val_linha;
-        int val_coluna = numero_aleatorio(1, 78);
-        int *coluna = &val_coluna;
-
-        verificaSoma(posicoesGlobais, qntd_pontos, linha, coluna, indiceGlobal, quadro);
-        *indiceGlobal += 5;
-
-        if (i = 0)
-        {
-            // desenho da casa
-            quadro[*linha][*coluna] = '*' ;
-            quadro[*linha-1][*coluna-1] = '*' ;
-            quadro[*linha+1][*coluna+1] = '*' ;
-            quadro[*linha+1][*coluna-1] = '*' ;
-            quadro[*linha-1][*coluna+1] = '*' ;
+void desenharCampoFutebol(char quadro[TAM_V][TAM_H]) {
+    // Limpar quadro
+    for (int i = 0; i < TAM_V; i++) {
+        for (int j = 0; j < TAM_H; j++) {
+            quadro[i][j] = ' ';
         }
-        else{
-            int aleatorio = numero_aleatorio(1,5);
-            switch (aleatorio)
-            {
-            case 1:
-                gerarCasa(quadro, qntd_pontos, posicoesGlobais, indiceGlobal); 
-                break;
+    }
 
-            case 2:
-                gerarGato(quadro, qntd_pontos, posicoesGlobais, indiceGlobal); 
-                break;
+    // Bordas externas do campo
+    for (int i = 0; i < TAM_V; i++) {
+        quadro[i][0] = '|';
+        quadro[i][TAM_H - 1] = '|';
+    }
+    for (int j = 0; j < TAM_H; j++) {
+        quadro[0][j] = '-';
+        quadro[TAM_V - 1][j] = '-';
+    }
 
-            case 3:
-                gerarPeixe(quadro, qntd_pontos, posicoesGlobais, indiceGlobal); 
-                break;
+    // Linha central
+    int cx = TAM_H / 2;
+    for (int i = 1; i < TAM_V - 1; i++) {
+        quadro[i][cx] = '|';
+    }
 
-            case 4:
-                gerarArvore(quadro, qntd_pontos, posicoesGlobais, indiceGlobal); 
-                break;
+    // Círculo central (aproximado)
+    int cy = TAM_V / 2;
+    quadro[cy][cx] = ' ';
+    quadro[cy - 1][cx] = '|';
+    quadro[cy + 1][cx] = '|';
+    quadro[cy][cx - 1] = '[';
+    quadro[cy][cx + 1] = ']';
 
-            default:
-                break;
+    // Gol esquerdo (retângulo fechado com | e -)
+    int gol_altura = 8;
+    int gol_largura = 10;
+    int gol_linha_inicio = (TAM_V - gol_altura) / 2;
+    int gol_coluna_inicio = 1; // logo após a borda
+
+    for (int i = gol_linha_inicio; i < gol_linha_inicio + gol_altura; i++) {
+        for (int j = gol_coluna_inicio; j < gol_coluna_inicio + gol_largura; j++) {
+            if (i == gol_linha_inicio || i == gol_linha_inicio + gol_altura - 1) {
+                quadro[i][j] = '-'; // topo e fundo do gol
+            }
+            if (j == gol_coluna_inicio || j == gol_coluna_inicio + gol_largura - 1) {
+                quadro[i][j] = '|'; // lados do gol
             }
         }
     }
+
+    // Gol direito (retângulo fechado com | e -)
+    gol_coluna_inicio = TAM_H - 1 - gol_largura; // logo antes da borda direita
+    for (int i = gol_linha_inicio; i < gol_linha_inicio + gol_altura; i++) {
+        for (int j = gol_coluna_inicio; j < gol_coluna_inicio + gol_largura; j++) {
+            if (i == gol_linha_inicio || i == gol_linha_inicio + gol_altura - 1) {
+                quadro[i][j] = '-'; // topo e fundo do gol
+            }
+            if (j == gol_coluna_inicio || j == gol_coluna_inicio + gol_largura - 1) {
+                quadro[i][j] = '|'; // lados do gol
+            }
+        }
+    }
+}
+
+void desenharBolaAleatoria(char quadro[TAM_V][TAM_H]) {
+    int linha, coluna;
+
+    // Escolhe posição aleatória dentro do campo (ignorando bordas externas e gols)
+    do {
+        linha = 1 + rand() % (TAM_V - 2);       // evita primeira e última linha
+        coluna = 1 + rand() % (TAM_H - 2);      // evita primeira e última coluna
+    } while (quadro[linha][coluna] != ' ' || 
+             quadro[linha][coluna-1] != ' ' || 
+             quadro[linha][coluna+1] != ' '); // evita sobrescrever algo
+
+    // Desenha a bola (__)
+    quadro[linha][coluna - 1] = '(';
+    quadro[linha][coluna] = '_';
+    quadro[linha][coluna + 1] = ')';
+}
+
+bool bolaNoGol(char quadro[TAM_V][TAM_H]) {
+    int gol_altura = 8;
+    int gol_largura = 10;
+    int gol_linha_inicio = (TAM_V - gol_altura) / 2;
+
+    // Gol esquerdo
+    int gol_esq_col_inicio = 1; // logo após a borda esquerda
+    int gol_esq_col_fim = gol_esq_col_inicio + gol_largura - 1;
+    int gol_linha_fim = gol_linha_inicio + gol_altura - 1;
+
+    // Gol direito
+    int gol_dir_col_inicio = TAM_H - 1 - gol_largura;
+    int gol_dir_col_fim = TAM_H - 2;
+
+    // Percorre o quadro procurando a bola
+    for (int i = gol_linha_inicio; i <= gol_linha_fim; i++) {
+        for (int j = 0; j < TAM_H; j++) {
+            if (quadro[i][j] == '_') { // bola representada por '_'
+                // Verifica se a posição da bola está dentro do gol esquerdo
+                if (j >= gol_esq_col_inicio && j <= gol_esq_col_fim) {
+                    return true;
+                }
+                // Verifica se a posição da bola está dentro do gol direito
+                if (j >= gol_dir_col_inicio && j <= gol_dir_col_fim) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+#define QNTD_BONECOS 4
+
+void gerarBonecoDetalhado(char quadro[TAM_V][TAM_H], int quantidade) {
+    int linha, coluna;
+
+    for (int n = 0; n < quantidade; n++) {
+        int valido;
+        do {
+            valido = 1;
+            // Escolhe posição aleatória para a "cabeça" do boneco
+            linha = 1 + rand() % (TAM_V - 4);   // deixa espaço para corpo e pernas
+            coluna = 1 + rand() % (TAM_H - 3);  // deixa espaço para braços
+
+            // Verifica se as posições estão livres
+            for (int i = 0; i < 3; i++) {       // linhas do boneco
+                for (int j = -1; j <= 1; j++) { // colunas relativas à cabeça
+                    if (quadro[linha + i][coluna + j] != ' ') {
+                        valido = 0;
+                        break;
+                    }
+                }
+                if (!valido) break;
+            }
+        } while (!valido);
+
+        // Desenha boneco
+        quadro[linha][coluna] = 'O';              // cabeça
+        quadro[linha + 1][coluna - 1] = '/';      // braços
+        quadro[linha + 1][coluna] = '|';
+        quadro[linha + 1][coluna + 1] = '\\';
+        quadro[linha + 2][coluna - 1] = '/';      // pernas
+        quadro[linha + 2][coluna + 1] = '\\';
+    }
+}
+
+int verificaGolComDefesa(char quadro[TAM_V][TAM_H]) {
+    int gol_altura = 8;
+    int gol_largura = 10;
+    int gol_linha_inicio = (TAM_V - gol_altura) / 2;
+
+    // Limites dos gols
+    int gol_esq_col_inicio = 1; 
+    int gol_esq_col_fim = gol_esq_col_inicio + gol_largura - 1;
+    int gol_dir_col_inicio = TAM_H - 1 - gol_largura;
+    int gol_dir_col_fim = TAM_H - 2;
+    int gol_linha_fim = gol_linha_inicio + gol_altura - 1;
+
+    // Percorre o quadro procurando a bola
+    for (int i = 0; i < TAM_V; i++) {
+        for (int j = 0; j < TAM_H; j++) {
+            if (quadro[i][j] == '_') { // encontrou a bola
+                // Verifica se está dentro do gol esquerdo
+                if (i >= gol_linha_inicio && i <= gol_linha_fim && j >= gol_esq_col_inicio && j <= gol_esq_col_fim) {
+                    // Checa se há algum boneco na posição da bola (3x3)
+                    for (int bi = i - 1; bi <= i + 1; bi++) {
+                        for (int bj = j - 1; bj <= j + 1; bj++) {
+                            if (bi >= 0 && bi < TAM_V && bj >= 0 && bj < TAM_H) {
+                                char c = quadro[bi][bj];
+                                if (c == 'O' || c == '/' || c == '|' || c == '\\') {
+                                    return 2; // defesa
+                                }
+                            }
+                        }
+                    }
+                    return 1; // gol
+                }
+                // Verifica se está dentro do gol direito
+                if (i >= gol_linha_inicio && i <= gol_linha_fim && j >= gol_dir_col_inicio && j <= gol_dir_col_fim) {
+                    for (int bi = i - 1; bi <= i + 1; bi++) {
+                        for (int bj = j - 1; bj <= j + 1; bj++) {
+                            if (bi >= 0 && bi < TAM_V && bj >= 0 && bj < TAM_H) {
+                                char c = quadro[bi][bj];
+                                if (c == 'O' || c == '/' || c == '|' || c == '\\') {
+                                    return 2; // defesa
+                                }
+                            }
+                        }
+                    }
+                    return 1; // gol
+                }
+            }
+        }
+    }
+    return 0; // fora do gol
 }
 
 
@@ -291,8 +442,19 @@ int main() {
     srand(time(NULL));
     char quadro[TAM_V][TAM_H];
     preencherQuadro(quadro);
-    Especial(quadro, qntd_pontos, posicoesGlobais, indiceGlobal);
+    desenharCampoFutebol(quadro);
+    gerarBonecoDetalhado(quadro, 4);
+    desenharBolaAleatoria(quadro);
     imprimirQuadro(quadro);
+    int resultado = verificaGolComDefesa(quadro);
+    if (resultado == 0) {
+        printf("Bola fora do gol.\n");
+    } else if (resultado == 1) {
+        printf("GOOOOL!!!\n");
+    } else if (resultado == 2) {
+        printf("DEFESA!\n");
+    }
+
     
 
     return 0;
